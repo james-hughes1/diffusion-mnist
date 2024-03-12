@@ -1,0 +1,5 @@
+# LaTeX Auxiliary files
+*.aux
+*.log
+*.synctex.gz
+*.bbl
