@@ -15,3 +15,6 @@ docs/html/*
 !docs/html/index.html
 docs/latex/*
 !docs/latex/refman.pdf
+
+# Data
+data/MNIST/
