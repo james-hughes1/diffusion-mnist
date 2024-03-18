@@ -3,6 +3,7 @@
 *.log
 *.synctex.gz
 *.bbl
+*.blg
 
 # Pip environment
 M2ENV/

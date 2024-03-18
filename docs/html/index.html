@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.9.1"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>MNIST Diffusion Project: Main Page</title>
+<title>MNIST Diffusion Project: MNIST Diffusion Project</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -60,11 +60,21 @@ $(function() {
 </iframe>
 </div>
 
-<div class="header">
+<div class="PageDoc"><div class="header">
   <div class="headertitle">
-<div class="title">MNIST Diffusion Project Documentation</div>  </div>
+<div class="title">MNIST Diffusion Project </div>  </div>
 </div><!--header-->
 <div class="contents">
+<div class="textblock"><p>Software used to investigate the use of generative diffusion modelling to recreate realistic monochrome images of handwritten digits, using the classical MNIST dataset as training data. The software utilises PyTorch to implement the neural network models and the training procedure. </p>
+<h1><a class="anchor" id="Modules"></a>
+Modules</h1>
+<h2><a class="anchor" id="models"></a>
+models</h2>
+<p>This module contains code used to instantiate standard image-to-image convolutional neural networks, as well as a DDPM class, with methods that enable training the image-to-image model according to the diffusion paradigm, and similarly performing diffusion sampling. </p>
+<h2><a class="anchor" id="train"></a>
+train</h2>
+<p>This module contains the ddpm_train function, which implements the diffusion training process, and saves the model parameters and samples periodically, according to specified training parameters. </p><dl class="section author"><dt>Author</dt><dd>Created by J. Hughes on 06/12/2023. </dd></dl>
+</div></div><!-- PageDoc -->
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

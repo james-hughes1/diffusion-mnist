@@ -11,9 +11,12 @@ import configparser as cfg
 import torch
 import torch.nn as nn
 from accelerate import Accelerator
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
+
+# Set random seed for greater reproducibility
+torch.manual_seed(42)
 
 # Load hyperparameters.
 config = cfg.ConfigParser()
@@ -48,8 +51,22 @@ tf = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
 )
 dataset = MNIST("./data", train=True, download=True, transform=tf)
-dataloader = DataLoader(
-    dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True
+
+# Split into train and validation, and create dataloaders
+dataset_train, dataset_val = random_split(dataset, [0.8, 0.2])
+dataloader_train = DataLoader(
+    dataset_train,
+    batch_size=batch_size,
+    shuffle=True,
+    num_workers=4,
+    drop_last=True,
+)
+dataloader_val = DataLoader(
+    dataset_val,
+    batch_size=batch_size,
+    shuffle=True,
+    num_workers=4,
+    drop_last=True,
 )
 
 # Create DDPM model.
@@ -62,14 +79,17 @@ optim = torch.optim.Adam(ddpm.parameters(), lr=lr_initial)
 accelerator = Accelerator()
 
 # Initialise Accelerator object.
-ddpm, optim, dataloader = accelerator.prepare(ddpm, optim, dataloader)
+ddpm, optim, dataloader_train, dataloader_val = accelerator.prepare(
+    ddpm, optim, dataloader_train, dataloader_val
+)
 print(f"Accelerator initialised, using device {accelerator.device}.")
 
 # Train and save DDPM model.
 train_ddpm(
     ddpm,
     optim,
-    dataloader,
+    dataloader_train,
+    dataloader_val,
     accelerator,
     n_epoch,
     save_interval,
