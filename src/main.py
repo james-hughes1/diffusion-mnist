@@ -1,5 +1,5 @@
 """!@file main.py
-    @brief Runs DDPM diffusion model.
+    @brief Used to create and train DDPM .
     @author Created by J. Hughes on 18/03/2024.
 """
 
@@ -34,7 +34,9 @@ n_epoch = config.getint("training", "n_epoch", fallback=100)
 batch_size = config.getint("training", "batch_size", fallback=128)
 lr_initial = config.getfloat("training", "lr_initial", fallback=2e-4)
 
-model_path = config.get("output", "model_path", fallback="./data/DDPM/model/")
+checkpoint_path = config.get(
+    "output", "checkpoint_path", fallback="./data/DDPM/checkpoint/"
+)
 sample_path = config.get(
     "output", "sample_path", fallback="./data/DDPM/sample/"
 )
@@ -72,6 +74,6 @@ train_ddpm(
     n_epoch,
     save_interval,
     sample_path,
-    model_path,
+    checkpoint_path,
     config_id,
 )

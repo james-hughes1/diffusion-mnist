@@ -15,7 +15,7 @@ def train_ddpm(
     n_epoch: int,
     save_interval: int,
     sample_path: str,
-    model_path: str,
+    checkpoint_path: str,
     config_id: str,
 ):
     losses = []
@@ -50,9 +50,19 @@ def train_ddpm(
             )
             save_image(grid, sample_filename)
 
-            # save model
-            model_filename = (
-                model_path + f"ddpm_model_{config_id:04d}_{i:04d}.pth"
-            )
+            # Checkpoint
             if i % save_interval == 0:
-                torch.save(ddpm.state_dict(), model_filename)
+                checkpoint_filename = (
+                    checkpoint_path
+                    + f"ddpm_checkpoint_{config_id:04d}_{i:04d}.pt"
+                )
+
+                torch.save(
+                    {
+                        "epoch": i,
+                        "model_state_dict": ddpm.state_dict(),
+                        "optimizer_state_dict": optim.state_dict(),
+                        "loss": avg_loss,
+                    },
+                    checkpoint_filename,
+                )
