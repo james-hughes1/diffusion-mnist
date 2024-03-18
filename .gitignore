@@ -3,3 +3,15 @@
 *.log
 *.synctex.gz
 *.bbl
+
+# Pip environment
+M2ENV/
+
+# Docs
+docs/*
+!docs/html
+!docs/latex
+docs/html/*
+!docs/html/index.html
+docs/latex/*
+!docs/latex/refman.pdf
