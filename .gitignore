@@ -9,6 +9,7 @@ M2ENV/
 
 # Docs
 docs/*
+!docs/Doxyfile
 !docs/html
 !docs/latex
 docs/html/*
@@ -18,3 +19,6 @@ docs/latex/*
 
 # Data
 data/MNIST/
+
+# Pycache
+__pycache__/
