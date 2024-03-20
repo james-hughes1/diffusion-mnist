@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-# Set random seed for greater reproducibility
+# Set random seed for greater reproducibility.
 torch.manual_seed(42)
 
 # Load hyperparameters.
