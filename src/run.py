@@ -1,10 +1,10 @@
 """!@file main.py
-    @brief Used to create and train DDPM .
+    @brief Used to create and train model .
     @author Created by J. Hughes on 18/03/2024.
 """
 
-from diffusiontools.models import CNN, DDPM
-from diffusiontools.train import train_ddpm
+from diffusiontools.models import CNN, DDPM, DMCustom
+from diffusiontools.train import train_model
 
 import sys
 import configparser as cfg
@@ -27,9 +27,11 @@ if len(sys.argv) == 2:
 else:
     print("No config file given, using default hyperparameters.")
 
-beta1 = config.getfloat("model", "beta1", fallback=1e-4)
-beta2 = config.getfloat("model", "beta2", fallback=0.02)
+# Read config hyperparamters.
+noise_min = config.getfloat("model", "noise_min", fallback=1e-4)
+noise_max = config.getfloat("model", "noise_max", fallback=0.02)
 n_T = config.getint("model", "n_T", fallback=1000)
+degradation = config.get("model", "degradation", fallback="gaussian")
 n_hidden = config.get("model", "n_hidden", fallback="16 32 32 16")
 n_hidden = tuple(int(h) for h in n_hidden.split())
 
@@ -38,10 +40,10 @@ batch_size = config.getint("training", "batch_size", fallback=128)
 lr_initial = config.getfloat("training", "lr_initial", fallback=2e-4)
 
 checkpoint_path = config.get(
-    "output", "checkpoint_path", fallback="./data/DDPM/checkpoint/"
+    "output", "checkpoint_path", fallback="./data/model/checkpoint/"
 )
 sample_path = config.get(
-    "output", "sample_path", fallback="./data/DDPM/sample/"
+    "output", "sample_path", fallback="./data/model/sample/"
 )
 save_interval = config.getint("output", "save_interval", fallback=10)
 config_id = config.getint("output", "config_id", fallback=1234)
@@ -69,24 +71,31 @@ dataloader_val = DataLoader(
     drop_last=True,
 )
 
-# Create DDPM model.
+# Create model model.
 gt = CNN(
     in_channels=1, expected_shape=(28, 28), n_hidden=n_hidden, act=nn.GELU
 )
-ddpm = DDPM(gt=gt, betas=(beta1, beta2), n_T=n_T)
-optim = torch.optim.Adam(ddpm.parameters(), lr=lr_initial)
+if degradation == "gaussian":
+    model = DDPM(gt=gt, betas=(noise_min, noise_max), n_T=n_T)
+elif degradation == "custom":
+    model = DMCustom(
+        gt=gt, alphas=(noise_min, noise_max), n_T=n_T, size=(1, 28, 28)
+    )
+else:
+    print(f"Unspecified degradation type {degradation}.")
+optim = torch.optim.Adam(model.parameters(), lr=lr_initial)
 
 accelerator = Accelerator()
 
 # Initialise Accelerator object.
-ddpm, optim, dataloader_train, dataloader_val = accelerator.prepare(
-    ddpm, optim, dataloader_train, dataloader_val
+model, optim, dataloader_train, dataloader_val = accelerator.prepare(
+    model, optim, dataloader_train, dataloader_val
 )
 print(f"Accelerator initialised, using device {accelerator.device}.")
 
-# Train and save DDPM model.
-train_ddpm(
-    ddpm,
+# Train and save model model.
+train_model(
+    model,
     optim,
     dataloader_train,
     dataloader_val,

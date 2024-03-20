@@ -7,7 +7,7 @@ from tqdm import tqdm
 from torchvision.utils import save_image, make_grid
 
 
-def train_ddpm(
+def train_model(
     ddpm: nn.Module,
     optim: torch.optim.Optimizer,
     dataloader_train: DataLoader,
