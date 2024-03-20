@@ -20,6 +20,7 @@ docs/latex/*
 
 # Data
 data/MNIST/
+data/DDPM/
 
 # Pycache
 __pycache__/
