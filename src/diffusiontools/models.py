@@ -222,69 +222,71 @@ class DMCustom(nn.Module):
         self.criterion = criterion
         self.size = size
 
-    def degrade(self, z_t: torch.Tensor, t: int) -> torch.Tensor:
-        batch_size = t.shape[0]
+    def degrade(self, z_t: torch.Tensor, t: int, device) -> torch.Tensor:
+        batch_size = z_t.shape[0]
         size = self.size
         delta1 = (
-            (torch.rand((batch_size, size[1], size[2])) - 0.5)
+            (torch.rand((size[1], size[2]), device=device) - 0.5)
             * 2
-            * self.noise_t[t, None, None]
+            * self.noise_t[t]
             * size[1]
         )
         delta2 = (
-            (torch.rand((batch_size, size[1], size[2])) - 0.5)
+            (torch.rand((size[1], size[2]), device=device) - 0.5)
             * 2
-            * self.noise_t[t, None, None]
+            * self.noise_t[t]
             * size[2]
         )
         rows, cols = torch.meshgrid(
-            torch.arange(size[1]), torch.arange(size[2]), indexing="ij"
+            torch.arange(size[1], device=device),
+            torch.arange(size[2], device=device),
+            indexing="ij",
         )
         cols.unsqueeze(0).repeat(batch_size, 1, 1)
         rows.unsqueeze(0).repeat(batch_size, 1, 1)
         cols = (cols + delta1.int()) % size[1]
         rows = (rows + delta2.int()) % size[2]
-        for img_idx in range(batch_size):
-            for i in range(size[1]):
-                for j in range(size[2]):
-                    (
-                        z_t[img_idx, 0, i, j],
-                        z_t[
-                            img_idx,
-                            0,
-                            rows[img_idx, i, j],
-                            cols[img_idx, i, j],
-                        ],
-                    ) = (
-                        z_t[
-                            img_idx,
-                            0,
-                            rows[img_idx, i, j],
-                            cols[img_idx, i, j],
-                        ],
-                        z_t[img_idx, 0, i, j],
-                    )
+        for i in range(size[1]):
+            for j in range(size[2]):
+                z_t[:, 0, i, j], z_t[:, 0, rows[i, j], cols[i, j]] = (
+                    z_t[:, 0, rows[i, j], cols[i, j]],
+                    z_t[:, 0, i, j],
+                )
         return z_t
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Choose random time step and degrade image batch accordingly.
-        t = torch.randint(1, self.n_T, (x.shape[0],), device=x.device)
+        t = torch.randint(1, self.n_T, (1,), device=x.device)
         z_t = x.clone()
-        z_t = self.degrade(z_t, t)
+        z_t = self.degrade(z_t, t, x.device)
 
         # Note we have changed from predicting error (eps) to x itself.
         return self.criterion(x, self.gt(z_t, t / self.n_T))
 
-    def sample(
-        self, z_t: torch.Tensor, n_sample: int, size, device
-    ) -> torch.Tensor:
+    def sample(self, n_sample: int, size, device) -> torch.Tensor:
         # Algorithm 2 from Bansal et al. Cold Diffusion paper.
+        # Create random noise
+        pos = torch.arange(
+            0, n_sample * size[0] * size[1] * size[2], device=device
+        )
+        pos = (pos % 5 == 0).reshape((n_sample, *size)) * 1
+        random_vals = torch.rand(n_sample, *size, device=device)
+        z_t = pos * (0.25 + random_vals / 4) + (pos - 1) * (
+            0.49 + random_vals / 100
+        )
+        # Maximal degradation.
+        z_t = self.degrade(z_t, self.n_T - 1, device)
+
         _one = torch.ones(n_sample, device=device)
         for t in range(self.n_T, 0, -1):
             # Reconstruction
             x_pred = self.gt(z_t, (t / self.n_T) * _one)
 
             # Degradation
-            z_t = z_t - self.degrade(x_pred, t) + self.degrade(x_pred, t - 1)
+            z_t = (
+                z_t
+                - self.degrade(x_pred, t, device)
+                + self.degrade(x_pred, t - 1, device)
+            )
 
         return z_t

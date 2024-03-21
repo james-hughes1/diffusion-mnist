@@ -8,7 +8,7 @@ from sklearn.manifold import TSNE
 from typing import List
 from tqdm import tqdm
 
-from diffusiontools.models import DDPM
+from diffusiontools.models import DDPM, DMCustom
 
 
 def plot_learning_curve(
@@ -28,23 +28,22 @@ def plot_learning_curve(
 
 
 def compute_image_diffusion(
-    ddpm: DDPM, image_fractions: List[int], n_sample: int, size, device
+    model: DDPM, image_fractions: List[int], n_sample: int, size, device
 ):
     image_idx = [
-        int(fraction * (ddpm.n_T - 1)) for fraction in image_fractions
+        int(fraction * (model.n_T - 1)) for fraction in image_fractions
     ]
     images = []
-
-    # Run DDPM.sample method but with periodic saving to images.
+    # Run model.sample method but with periodic saving to images.
     _one = torch.ones(n_sample, device=device)
     z_t = torch.randn(n_sample, *size, device=device)
-    for i in tqdm(range(ddpm.n_T, 0, -1)):
-        alpha_t = ddpm.alpha_t[i]
-        beta_t = ddpm.beta_t[i]
+    for i in tqdm(range(model.n_T, 0, -1)):
+        alpha_t = model.alpha_t[i]
+        beta_t = model.beta_t[i]
 
         # First line of loop:
-        z_t -= (beta_t / torch.sqrt(1 - alpha_t)) * ddpm.gt(
-            z_t, (i / ddpm.n_T) * _one
+        z_t -= (beta_t / torch.sqrt(1 - alpha_t)) * model.gt(
+            z_t, (i / model.n_T) * _one
         )
         z_t /= torch.sqrt(1 - beta_t)
 
@@ -62,8 +61,49 @@ def compute_image_diffusion(
     return image_idx, images
 
 
+def compute_image_diffusion_custom(
+    model: DMCustom, image_fractions: List[int], n_sample: int, size, device
+) -> torch.Tensor:
+    # Algorithm 2 from Bansal et al. Cold Diffusion paper.
+    # Create random noise
+    tf = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
+    )
+    dataset_mnist = MNIST("./data", train=False, download=True, transform=tf)
+    z_t = torch.zeros((n_sample, 1, 28, 28), device=device)
+    for i in range(n_sample):
+        z_t[i, 0, :, :] = dataset_mnist.__getitem__(i)[0].to(device)
+
+    # Maximal degradation.
+    z_t = model.degrade(z_t, model.n_T - 1, device)
+
+    image_idx = [
+        int(fraction * (model.n_T - 1)) for fraction in image_fractions
+    ]
+    images = []
+
+    _one = torch.ones(n_sample, device=device)
+    for t in tqdm(range(model.n_T, 0, -1)):
+        # Reconstruction
+        x_pred = model.gt(z_t, (t / model.n_T) * _one)
+
+        # Degradation
+        z_t = (
+            z_t
+            - model.degrade(x_pred, t, device=device)
+            + model.degrade(x_pred, t - 1, device=device)
+        )
+
+        # Save intermediate image generation.
+        if t in image_idx:
+            images.append(z_t.clone().detach().cpu().numpy())
+    images.append(z_t.clone().detach().cpu().numpy())
+
+    return image_idx, images
+
+
 def plot_image_diffusion(
-    ddpm: DDPM,
+    model,
     image_fractions: List[int],
     n_sample: int,
     size,
@@ -72,9 +112,14 @@ def plot_image_diffusion(
     filename: str,
 ):
     n_image = len(image_fractions)
-    image_idx, images = compute_image_diffusion(
-        ddpm, image_fractions, n_sample, size, device
-    )
+    if isinstance(model, DDPM):
+        image_idx, images = compute_image_diffusion(
+            model, image_fractions, n_sample, size, device
+        )
+    else:
+        image_idx, images = compute_image_diffusion_custom(
+            model, image_fractions, n_sample, size, device
+        )
 
     fig, ax = plt.subplots(
         n_sample, n_image, figsize=(1.5 * n_image, 1.5 * n_sample)
