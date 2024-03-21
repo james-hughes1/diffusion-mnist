@@ -19,7 +19,6 @@ def train_model(
     checkpoint_path: str,
     config_id: str,
 ):
-    losses_train_batch = []
     losses_train_epoch = []
     losses_val_epoch = []
 
@@ -29,6 +28,7 @@ def train_model(
         pbar = tqdm(
             dataloader_train
         )  # Wrap our loop with a visual progress bar
+        losses_train_batch = []
         for x, _ in pbar:
             optim.zero_grad()
 
@@ -39,10 +39,10 @@ def train_model(
             # necessary for local training
 
             losses_train_batch.append(loss.item())
-            avg_loss_train = np.average(
-                losses_train_batch[min(len(losses_train_batch) - 100, 0) :]
-            )
-            # Show running average of loss in progress bar
+
+            # Rolling average loss for display.
+            avg_loss_train = np.average(losses_train_batch)
+            # Show rolling average of loss in progress bar.
             pbar.set_description(
                 f"Epoch {i:04d}, train loss: {avg_loss_train:.3g}"
             )
