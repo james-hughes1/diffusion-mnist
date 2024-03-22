@@ -222,7 +222,8 @@ class DMCustom(nn.Module):
         self.criterion = criterion
         self.size = size
 
-    def degrade(self, z_t: torch.Tensor, t: int, device) -> torch.Tensor:
+    def degrade(self, x: torch.Tensor, t: int, device) -> torch.Tensor:
+        z_t = x.clone()
         batch_size = z_t.shape[0]
         size = self.size
         delta1 = (
@@ -260,8 +261,9 @@ class DMCustom(nn.Module):
         z_t = x.clone()
         z_t = self.degrade(z_t, t, x.device)
 
+        _one = torch.ones(x.shape[0], device=x.device)
         # Note we have changed from predicting error (eps) to x itself.
-        return self.criterion(x, self.gt(z_t, t / self.n_T))
+        return self.criterion(x, self.gt(z_t, (t / self.n_T) * _one))
 
     def sample(self, n_sample: int, size, device) -> torch.Tensor:
         # Algorithm 2 from Bansal et al. Cold Diffusion paper.
@@ -283,10 +285,6 @@ class DMCustom(nn.Module):
             x_pred = self.gt(z_t, (t / self.n_T) * _one)
 
             # Degradation
-            z_t = (
-                z_t
-                - self.degrade(x_pred, t, device)
-                + self.degrade(x_pred, t - 1, device)
-            )
+            z_t = self.degrade(x_pred, t - 1, device)
 
         return z_t

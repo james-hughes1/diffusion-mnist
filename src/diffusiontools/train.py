@@ -4,7 +4,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from accelerate import Accelerator
 from tqdm import tqdm
-from torchvision.utils import save_image, make_grid
 
 
 def train_model(
@@ -67,14 +66,6 @@ def train_model(
 
             # Checkpoint
             if i % save_interval == 0:
-                # Save samples
-                xh = ddpm.sample(16, (1, 28, 28), accelerator.device)
-                grid = make_grid(xh, nrow=4)
-                sample_filename = (
-                    sample_path + f"ddpm_sample_{config_id:04d}_{i:04d}.png"
-                )
-                save_image(grid, sample_filename)
-
                 # Save model.
                 checkpoint_filename = (
                     checkpoint_path

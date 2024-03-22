@@ -72,7 +72,7 @@ def compute_image_diffusion_custom(
     dataset_mnist = MNIST("./data", train=False, download=True, transform=tf)
     z_t = torch.zeros((n_sample, 1, 28, 28), device=device)
     for i in range(n_sample):
-        z_t[i, 0, :, :] = dataset_mnist.__getitem__(i)[0].to(device)
+        z_t[i, 0, :, :] = dataset_mnist.__getitem__(i + 20)[0].to(device)
 
     # Maximal degradation.
     z_t = model.degrade(z_t, model.n_T - 1, device)
@@ -84,19 +84,15 @@ def compute_image_diffusion_custom(
 
     _one = torch.ones(n_sample, device=device)
     for t in tqdm(range(model.n_T, 0, -1)):
+        # Save intermediate image generation.
+        if t in image_idx:
+            images.append(z_t.clone().detach().cpu().numpy())
         # Reconstruction
         x_pred = model.gt(z_t, (t / model.n_T) * _one)
 
         # Degradation
-        z_t = (
-            z_t
-            - model.degrade(x_pred, t, device=device)
-            + model.degrade(x_pred, t - 1, device=device)
-        )
+        z_t = model.degrade(x_pred, t - 1, device=device)
 
-        # Save intermediate image generation.
-        if t in image_idx:
-            images.append(z_t.clone().detach().cpu().numpy())
     images.append(z_t.clone().detach().cpu().numpy())
 
     return image_idx, images

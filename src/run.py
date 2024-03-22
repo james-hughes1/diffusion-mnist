@@ -34,6 +34,7 @@ n_T = config.getint("model", "n_T", fallback=1000)
 degradation = config.get("model", "degradation", fallback="gaussian")
 n_hidden = config.get("model", "n_hidden", fallback="16 32 32 16")
 n_hidden = tuple(int(h) for h in n_hidden.split())
+loss_fn = config.get("model", "loss_fn", fallback="L2")
 
 n_epoch = config.getint("training", "n_epoch", fallback=100)
 batch_size = config.getint("training", "batch_size", fallback=128)
@@ -75,11 +76,23 @@ dataloader_val = DataLoader(
 gt = CNN(
     in_channels=1, expected_shape=(28, 28), n_hidden=n_hidden, act=nn.GELU
 )
+
+if loss_fn == "L2":
+    criterion = nn.MSELoss()
+elif loss_fn == "L1":
+    criterion = nn.L1Loss()
+
 if degradation == "gaussian":
-    model = DDPM(gt=gt, betas=(noise_min, noise_max), n_T=n_T)
+    model = DDPM(
+        gt=gt, betas=(noise_min, noise_max), n_T=n_T, criterion=criterion
+    )
 elif degradation == "custom":
     model = DMCustom(
-        gt=gt, alphas=(noise_min, noise_max), n_T=n_T, size=(1, 28, 28)
+        gt=gt,
+        alphas=(noise_min, noise_max),
+        n_T=n_T,
+        size=(1, 28, 28),
+        criterion=criterion,
     )
 else:
     print(f"Unspecified degradation type {degradation}.")

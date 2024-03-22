@@ -64,31 +64,31 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #        )
 
 # Load models.
-ckpt_0003 = torch.load(
-    "data/DDPM/checkpoint/ddpm_checkpoint_0003_0000.pt",
+ckpt = torch.load(
+    "ddpm_checkpoint_0008_0011.pt",
     map_location=device,
 )
 
 gt_1 = CNN(
     in_channels=1,
     expected_shape=(28, 28),
-    n_hidden=(16, 32, 32, 16),
+    n_hidden=(16, 32, 64, 32, 16),
     act=nn.GELU,
 ).to(device)
-model = DMCustom(gt=gt_1, alphas=(0.035, 0.4), n_T=1000, size=(1, 28, 28)).to(
+model = DMCustom(gt=gt_1, alphas=(0.035, 0.2), n_T=100, size=(1, 28, 28)).to(
     device
 )
-model.load_state_dict(ckpt_0003["model_state_dict"])
+model.load_state_dict(ckpt["model_state_dict"])
 
 # Create diffusion plots.
 model.eval()
 with torch.no_grad():
     plot_image_diffusion(
         model,
-        [1.0, 0.5, 0.1, 0.05, 0.0],
-        5,
+        [1.0, 0.75, 0.5, 0.25, 0.0],
+        20,
         (1, 28, 28),
         device,
-        "Intermediate Diffusion Images for Model 3 at Epoch 0",
-        "diffusion_plot_3_0000.png",
+        "Intermediate Diffusion Images for Model 8 at Epoch 11",
+        "diffusion_plot_8_0011.png",
     )
