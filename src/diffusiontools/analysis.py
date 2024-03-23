@@ -41,6 +41,10 @@ def compute_image_diffusion(
         alpha_t = model.alpha_t[i]
         beta_t = model.beta_t[i]
 
+        # Save intermediate image generation.
+        if i in image_idx:
+            images.append(z_t.clone().detach().cpu().numpy())
+
         # First line of loop:
         z_t -= (beta_t / torch.sqrt(1 - alpha_t)) * model.gt(
             z_t, (i / model.n_T) * _one
@@ -52,10 +56,6 @@ def compute_image_diffusion(
             z_t += torch.sqrt(beta_t) * torch.randn_like(z_t)
         # (We don't add noise at the final step - i.e., the last line of
         # the algorithm)
-
-        # Save intermediate image generation.
-        if i in image_idx:
-            images.append(z_t.clone().detach().cpu().numpy())
     images.append(z_t.clone().detach().cpu().numpy())
 
     return image_idx, images
@@ -72,10 +72,12 @@ def compute_image_diffusion_custom(
     dataset_mnist = MNIST("./data", train=False, download=True, transform=tf)
     z_t = torch.zeros((n_sample, 1, 28, 28), device=device)
     for i in range(n_sample):
-        z_t[i, 0, :, :] = dataset_mnist.__getitem__(i + 20)[0].to(device)
+        z_t[i, 0, :, :] = dataset_mnist.__getitem__(i)[0].to(device)
 
-    # Maximal degradation.
-    z_t = model.degrade(z_t, model.n_T - 1, device)
+        # Maximal degradation.
+        z_t[i, :, :, :] = model.degrade(
+            z_t[i, :, :, :].unsqueeze(0), model.n_T - 1, device
+        )
 
     image_idx = [
         int(fraction * (model.n_T - 1)) for fraction in image_fractions
@@ -87,13 +89,18 @@ def compute_image_diffusion_custom(
         # Save intermediate image generation.
         if t in image_idx:
             images.append(z_t.clone().detach().cpu().numpy())
+
         # Reconstruction
         x_pred = model.gt(z_t, (t / model.n_T) * _one)
 
         # Degradation
-        z_t = model.degrade(x_pred, t - 1, device=device)
+        if t > 1:
+            for i in range(n_sample):
+                z_t[i, :, :, :] = model.degrade(
+                    x_pred[i, :, :, :].unsqueeze(0), t - 1, device=device
+                )
 
-    images.append(z_t.clone().detach().cpu().numpy())
+    images.append(x_pred.clone().detach().cpu().numpy())
 
     return image_idx, images
 
@@ -140,6 +147,35 @@ def compute_variance(sample: np.ndarray):
     pixel_var = np.var(sample, axis=0, ddof=1)
     total_var = np.sum(pixel_var)
     return total_var
+
+
+def degradation_demo(
+    model: DMCustom, device, t_list: List[int], title: str, filename: str
+):
+    # Get MNIST examples.
+    tf = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
+    )
+    dataset_mnist = MNIST("./data", train=False, download=True, transform=tf)
+    x = torch.zeros((4, 1, 28, 28), device=device)
+    # The first instances of 1, 2, 3, 4 in MNIST (test) occur at these indices.
+    for i, digit in enumerate([2, 1, 18, 4]):
+        x[i, 0, :, :] = dataset_mnist.__getitem__(digit)[0].to(device)
+
+    n_images = len(t_list)
+    fig, ax = plt.subplots(4, n_images, figsize=(1.5 * n_images, 6))
+    for j, t in enumerate(t_list):
+        for i in range(4):
+            z_t = model.degrade(x[i, 0, :, :].repeat(4, 1, 1, 1), t, device)
+            ax[i, j].imshow(z_t[i, 0, :, :], cmap="grey")
+            ax[i, j].set_xticks([])
+            ax[i, j].set_yticks([])
+            if i == 3:
+                ax[i, j].set(xlabel=t_list[j])
+    fig.supxlabel("Diffusion Timestep, t")
+    fig.suptitle(title)
+    plt.tight_layout()
+    plt.savefig("data/analysis/" + filename)
 
 
 def plot_tsne(sample1: np.ndarray, sample2: np.ndarray, filename: str):
