@@ -9,7 +9,7 @@ torch.manual_seed(42)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-for epoch in range(180, 190, 10):
+for epoch in range(0, 200, 20):
     # Load models.
     ckpt_0001 = torch.load(
         f"data/DDPM/checkpoint/ddpm_checkpoint_0001_{epoch:04d}.pt",
@@ -89,7 +89,7 @@ for epoch in range(180, 190, 10):
             plot_image_diffusion(
                 model_9,
                 [1.0, 0.5, 0.1, 0.05, 0.0],
-                5,
+                20,
                 (1, 28, 28),
                 device,
                 "",

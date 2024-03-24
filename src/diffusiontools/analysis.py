@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 from sklearn.manifold import TSNE
+from sklearn.mixture import GaussianMixture
+from scipy.special import rel_entr
 from typing import List
 from tqdm import tqdm
 
@@ -23,8 +25,6 @@ def plot_learning_curve(
     ax.set(title=title, xlabel="Epoch", ylabel="Loss")
     ax.legend()
     plt.savefig("data/analysis/" + filename)
-    print(f"Final training loss was {losses_train[-1]:.5g}")
-    print(f"Final validation loss was {losses_val[-1]:.5g}")
 
 
 def compute_image_diffusion(
@@ -62,7 +62,12 @@ def compute_image_diffusion(
 
 
 def compute_image_diffusion_custom(
-    model: DMCustom, image_fractions: List[int], n_sample: int, size, device
+    model: DMCustom,
+    image_fractions: List[int],
+    n_sample: int,
+    size,
+    device,
+    direct: bool = False,
 ) -> torch.Tensor:
     # Algorithm 2 from Bansal et al. Cold Diffusion paper.
     # Create random noise
@@ -79,12 +84,11 @@ def compute_image_diffusion_custom(
             z_t[i, :, :, :].unsqueeze(0), model.n_T - 1, device
         )
 
-    image_idx = [
-        int(fraction * (model.n_T - 1)) for fraction in image_fractions
-    ]
+    image_idx = [int(fraction * (model.n_T)) for fraction in image_fractions]
     images = []
 
     _one = torch.ones(n_sample, device=device)
+    direct_img = None
     for t in tqdm(range(model.n_T, 0, -1)):
         # Save intermediate image generation.
         if t in image_idx:
@@ -93,16 +97,19 @@ def compute_image_diffusion_custom(
         # Reconstruction
         x_pred = model.gt(z_t, (t / model.n_T) * _one)
 
+        if direct and t == model.n_T:
+            direct_img = x_pred.clone().detach().cpu().numpy()
+
         # Degradation
         if t > 1:
             for i in range(n_sample):
                 z_t[i, :, :, :] = model.degrade(
                     x_pred[i, :, :, :].unsqueeze(0), t - 1, device=device
                 )
+    if 0 in image_fractions:
+        images.append(x_pred.clone().detach().cpu().numpy())
 
-    images.append(x_pred.clone().detach().cpu().numpy())
-
-    return image_idx, images
+    return image_idx, images, direct_img
 
 
 def plot_image_diffusion(
@@ -120,7 +127,7 @@ def plot_image_diffusion(
             model, image_fractions, n_sample, size, device
         )
     else:
-        image_idx, images = compute_image_diffusion_custom(
+        image_idx, images, _ = compute_image_diffusion_custom(
             model, image_fractions, n_sample, size, device
         )
 
@@ -141,6 +148,79 @@ def plot_image_diffusion(
     fig.suptitle(title)
     plt.tight_layout()
     plt.savefig("data/analysis/" + filename)
+
+
+def plot_samples(samples: np.ndarray, n_row: int, n_col: int, filename: str):
+    n_sample = n_row * n_col
+    fig, ax = plt.subplots(n_row, n_col, figsize=(n_col * 2.5, n_row * 2.5))
+    for i in range(n_sample):
+        ax[i // n_col, i % n_col].imshow(samples[i, 0, :, :], cmap="grey")
+        ax[i // n_col, i % n_col].set_xticks([])
+        ax[i // n_col, i % n_col].set_yticks([])
+    plt.tight_layout()
+    plt.savefig("data/analysis/" + filename)
+
+
+def plot_gt_direct_diffusion(
+    direct_sample: np.ndarray,
+    diffusion_sample: np.ndarray,
+    n_plot: int,
+    filename: str,
+):
+    n_sample = direct_sample.shape[0]
+    # Load MNIST Dataset
+    tf = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
+    )
+    dataset_mnist = MNIST("./data", train=False, download=True, transform=tf)
+    gt_sample = np.zeros((n_sample, 1, 28, 28))
+    gt_labels = np.zeros(n_sample)
+    for i in range(n_sample):
+        gt_sample[i, 0, :, :] = dataset_mnist.__getitem__(i)[0]
+        gt_labels[i] = dataset_mnist.__getitem__(i)[1]
+
+    fig, ax = plt.subplots(n_plot, 3, figsize=(7.5, n_plot * 2.5))
+    for i in range(n_plot):
+        # Plot last {n_plot} images and their reconstructions.
+        ax[i, 0].imshow(gt_sample[-i, 0, :, :], cmap="grey")
+        ax[i, 1].imshow(direct_sample[-i, 0, :, :], cmap="grey")
+        ax[i, 2].imshow(diffusion_sample[-i, 0, :, :], cmap="grey")
+
+        # Remove axis ticks.
+        ax[i, 0].set_xticks([])
+        ax[i, 0].set_yticks([])
+        ax[i, 1].set_xticks([])
+        ax[i, 1].set_yticks([])
+        ax[i, 2].set_xticks([])
+        ax[i, 2].set_yticks([])
+    ax[0, 0].set(title="Ground Truth")
+    ax[0, 1].set(title="Direct")
+    ax[0, 2].set(title="Diffusion")
+
+    plt.tight_layout()
+    plt.savefig("data/analysis/" + filename)
+
+    direct_MSE = np.zeros(n_sample)
+    diffusion_MSE = np.zeros(n_sample)
+    for i in range(n_sample):
+        direct_MSE[i] = np.sqrt(
+            np.mean((direct_sample[i] - gt_sample[i]) ** 2)
+        )
+        diffusion_MSE[i] = np.sqrt(
+            np.mean((diffusion_sample[i] - gt_sample[i]) ** 2)
+        )
+    print(
+        "Overall Average MSE for reconstructions"
+        f" ... direct: {np.mean(direct_MSE):.5g}"
+        f" diffusion: {np.mean(diffusion_MSE):.5g}"
+    )
+    for k in range(10):
+        direct_MSE_k = np.mean(direct_MSE[np.where(gt_labels == k)])
+        diffusion_MSE_k = np.mean(diffusion_MSE[np.where(gt_labels == k)])
+        print(
+            f"Digit {k} ... direct: {direct_MSE_k:.5g}"
+            f" diffusion: {diffusion_MSE_k:.5g}"
+        )
 
 
 def compute_variance(sample: np.ndarray):
@@ -178,25 +258,136 @@ def degradation_demo(
     plt.savefig("data/analysis/" + filename)
 
 
-def plot_tsne(sample1: np.ndarray, sample2: np.ndarray, filename: str):
-    n1, n2 = len(sample1), len(sample2)
-
+def compute_tsne_kl_div(samples: List[np.ndarray], labels: List[str]):
     # Load Test MNIST Data with pre-processing.
     tf = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
     )
     dataset_mnist = MNIST("./data", train=False, download=True, transform=tf)
-    X = np.zeros((10000 + n1 + n2, 28 * 28))
+    mnist_array = np.zeros((10000, 1, 28, 28))
+    for i in range(10000):
+        mnist_array[i, 0, :, :] = (
+            dataset_mnist.__getitem__(i)[0].detach().cpu().numpy()
+        )
+
+    # Combine samples into single array.
+    sample_sizes = np.cumsum([sample.shape[0] for sample in samples])
+    full_dataset = np.concatenate([mnist_array, *samples], axis=0)
+    full_dataset = full_dataset.reshape((full_dataset.shape[0], -1))
+
+    # Fit TSNE model
+    tsne = TSNE(n_components=2)
+    full_dataset_fitted = tsne.fit_transform(full_dataset)
+
+    # Make grid for plotting
+    xx, yy = np.meshgrid(
+        np.linspace(-100, 100, 201), np.linspace(-100, 100, 201)
+    )
+    XY = np.vstack([xx.flatten(), yy.flatten()]).T
+
+    # Split dataset and fit GMM models.
+    gt_fitted = full_dataset_fitted[:10000, :]
+    model_GMM_gt = GaussianMixture(n_components=10)
+    model_GMM_gt.fit(gt_fitted)
+    loglh_gt = model_GMM_gt.score_samples(XY)
+    density_gt = np.exp(loglh_gt).reshape(xx.shape)
+
+    samples_fitted = []
+    samples_densities = []
+    for i in range(len(sample_sizes)):
+        if i == 0:
+            sample_i_fitted = full_dataset_fitted[
+                10000 : 10000 + sample_sizes[0]
+            ]
+        else:
+            sample_i_fitted = full_dataset_fitted[
+                10000 + sample_sizes[i - 1] : 10000 + sample_sizes[i]
+            ]
+        samples_fitted.append(sample_i_fitted)
+
+        # Fit GMM density.
+        model_GMM_i = GaussianMixture(n_components=10)
+        model_GMM_i.fit(sample_i_fitted)
+        loglh_i = model_GMM_i.score_samples(XY)
+        density_i = np.exp(loglh_i).reshape(xx.shape)
+        samples_densities.append(density_i)
+
+        # Estimate KL divergence.
+        kl_div_estimate = np.sum(rel_entr(density_i, density_gt))
+        print(
+            f"KL Divergence between distribution of MNIST test dataset"
+            f" and {labels[i]} is: {kl_div_estimate:.5g}"
+        )
+
+    return density_gt, samples_fitted, samples_densities
+
+
+def plot_sample_tsne(
+    density_gt: np.ndarray,
+    sample_1_fitted: np.ndarray,
+    sample_2_fitted: np.ndarray,
+    density_1: np.ndarray,
+    density_2: np.ndarray,
+    label_1: str,
+    label_2: str,
+    filename: str,
+):
+    # Make grid for plotting
+    xx, yy = np.meshgrid(
+        np.linspace(-100, 100, 201), np.linspace(-100, 100, 201)
+    )
+
+    # Plot contour of Ground Truth density with sample scatters.
+    fig, ax = plt.subplots(figsize=(10, 10))
+    contour_plot = ax.contourf(
+        xx, yy, density_gt, levels=10, cmap="GnBu", alpha=0.7, antialiased=True
+    )
+    cbar = plt.colorbar(contour_plot, format="%.0e")
+    cbar.ax.set_ylabel("Test Dataset Density")
+    ax.scatter(
+        sample_1_fitted[:, 0], sample_1_fitted[:, 1], marker="+", c="black"
+    )
+    ax.scatter(
+        sample_2_fitted[:, 0], sample_2_fitted[:, 1], marker=".", c="black"
+    )
+
+    # Add labels, legend.
+    sample_1_marker = mlines.Line2D(
+        [],
+        [],
+        c="black",
+        marker="+",
+        linestyle="None",
+        markersize=10,
+        label=label_1,
+    )
+    sample_2_marker = mlines.Line2D(
+        [],
+        [],
+        c="black",
+        marker=".",
+        linestyle="None",
+        markersize=10,
+        label=label_2,
+    )
+    ax.legend(handles=[sample_1_marker, sample_2_marker])
+    ax.set(xlabel="Embedding Dimension 1", ylabel="Embedding Dimension 2")
+    plt.savefig("data/analysis/" + filename)
+
+
+def plot_mnist_tsne(filename: str):
+    # Load Test MNIST Data with pre-processing.
+    tf = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
+    )
+    dataset_mnist = MNIST("./data", train=False, download=True, transform=tf)
+    X = np.zeros((10000, 28 * 28))
     y = np.zeros(10000)
     for i in range(10000):
         X[i, :] = (
             dataset_mnist.__getitem__(i)[0].detach().cpu().numpy().flatten()
         )
         y[i] = dataset_mnist.__getitem__(i)[1]
-    for i in range(n1):
-        X[i + 10000, :] = sample1[i].flatten()
-    for i in range(n2):
-        X[i + 10000 + n1, :] = sample2[i].flatten()
 
     # Perform dimensionality reduction.
     tsne = TSNE(n_components=2)
@@ -205,8 +396,8 @@ def plot_tsne(sample1: np.ndarray, sample2: np.ndarray, filename: str):
     # Plot three samples
     fig, ax = plt.subplots(figsize=(10, 10))
     scatter1 = ax.scatter(
-        X_fitted[:10000, 0],
-        X_fitted[:10000, 1],
+        X_fitted[:, 0],
+        X_fitted[:, 1],
         lw=0.01,
         c=y,
         cmap="gist_rainbow",
@@ -217,42 +408,5 @@ def plot_tsne(sample1: np.ndarray, sample2: np.ndarray, filename: str):
         *scatter1.legend_elements(), loc="lower left", title="MNIST Classes"
     )
     ax.add_artist(legend1)
-    ax.scatter(
-        X_fitted[10000 : 10000 + n1, 0],
-        X_fitted[10000 : 10000 + n1 :, 1],
-        lw=0.05,
-        c="black",
-        marker="*",
-    )
-    ax.scatter(
-        X_fitted[10000 + n1 :, 0],
-        X_fitted[10000 + n1 :, 1],
-        lw=0.05,
-        c="black",
-        marker="P",
-    )
-    sample1_marker = mlines.Line2D(
-        [],
-        [],
-        c="black",
-        marker="*",
-        linestyle="None",
-        markersize=10,
-        label="Sample 1",
-    )
-    sample2_marker = mlines.Line2D(
-        [],
-        [],
-        c="black",
-        marker="P",
-        linestyle="None",
-        markersize=10,
-        label="Sample 2",
-    )
-    ax.legend(handles=[sample1_marker, sample2_marker], loc="upper right")
-    ax.set(
-        title="t-SNE Embedding of MNIST Test Data",
-        xlabel="Embedding Dimension 1",
-        ylabel="Embedding Dimension 2",
-    )
+    ax.set(xlabel="Embedding Dimension 1", ylabel="Embedding Dimension 2")
     plt.savefig("data/analysis/" + filename)
