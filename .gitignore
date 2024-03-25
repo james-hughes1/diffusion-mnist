@@ -4,6 +4,7 @@
 *.synctex.gz
 *.bbl
 *.blg
+*.toc
 
 # Pip environment
 M2ENV/
