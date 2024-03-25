@@ -7,6 +7,7 @@
 
 \usepackage{graphicx}
 \usepackage{subcaption}
+\usepackage[export]{adjustbox}
 
 \begin{document}
 
@@ -43,7 +44,7 @@ Each of these scalars is in turn encoded as a vector, whose entries are a period
 of the scalar value.
 These vectors are then passed through a series of learned linear layers and non-linear activations,
 changing their length to equal the number of hidden channels in the first layer of the CNN.
-These time embeddings are then combiend with the first hidden activations via addition.
+These time embeddings are then combined with the first hidden activations via addition.
 
 This underlying model is then wrapped in a \texttt{DDPM} class, implementing a \texttt{forward} and \texttt{sample} method.
 The \texttt{forward} method takes a batch of MNIST images input.
@@ -66,7 +67,7 @@ The hyperparameter settings were also controlled via a \texttt{config.ini} to en
 \subsection{Analysis of Training}
 
 \begin{figure}[hp]
-    \includegraphics[scale=0.35]{figures/learning_curve_1.png}
+    \includegraphics[scale=0.35, center]{figures/learning_curve_1.png}
     \caption{Learning Curve for Model 1 Trained over 500 Epochs.}
     \label{fig:learning_curve_1}
 \end{figure}
@@ -88,23 +89,23 @@ This model was selected for further analysis as the final trained model.
 
 \begin{figure}[hp]
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_1_0040.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_1_0040.png}
     \caption{Epoch 40}
     \label{fig:1_40}
     \end{subfigure}
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_1_0060.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_1_0060.png}
     \caption{Epoch 60}
     \label{fig:1_60}
     \end{subfigure}
 
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_1_0120.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_1_0120.png}
     \caption{Epoch 120}
     \label{fig:1_120}
     \end{subfigure}
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_1_0300.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_1_0300.png}
     \caption{Epoch 300}
     \label{fig:1_300}
     \end{subfigure}
@@ -119,30 +120,30 @@ The noise parameter limits were accordingly increased by a factor of ten, ensuri
 
 
 \begin{figure}[hp]
-    \includegraphics[scale=0.35]{figures/learning_curve_2.png}
+    \includegraphics[scale=0.35, center]{figures/learning_curve_2.png}
     \caption{Learning Curve for Model 2 Trained over 500 Epochs.}
     \label{fig:learning_curve_2}
 \end{figure}
 
 \begin{figure}[hp]
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_2_0020.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_2_0020.png}
     \caption{Epoch 20}
     \label{fig:2_20}
     \end{subfigure}
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_2_0040.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_2_0040.png}
     \caption{Epoch 40}
     \label{fig:2_40}
     \end{subfigure}
 
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_2_0080.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_2_0080.png}
     \caption{Epoch 80}
     \label{fig:2_80}
     \end{subfigure}
     \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=0.9\linewidth, height=6cm]{figures/diffusion_plot_2_0100.png}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_2_0100.png}
     \caption{Epoch 100}
     \label{fig:2_100}
     \end{subfigure}
@@ -175,13 +176,13 @@ enabling an estimate of the KL divergence between the generated and ground truth
 
 
 \begin{figure}[hp]
-    \includegraphics[scale=0.54]{figures/tsne_mnist.png}
+    \includegraphics[scale=0.54, center]{figures/tsne_mnist.png}
     \caption{t-SNE dimensionality reduction applied to MNIST test dataset, with ground truth labels indicated.}
     \label{fig:tsne_mnist}
 \end{figure}
 
 \begin{figure}[hp]
-    \includegraphics[scale=0.54]{figures/tsne_gaussian_models.png}
+    \includegraphics[scale=0.54, center]{figures/tsne_gaussian_models.png}
     \caption{t-SNE dimensionality reduction applied to Gaussian model samples, with contour plot of GMM density estimate for MNIST test data.}
     \label{fig:tsne_gaussian}
 \end{figure}
@@ -190,7 +191,7 @@ Figure \ref{fig:tsne_gaussian} shows that both models have good coverage across 
 suggesting they are capable of producing a variety of different digits.
 However, we can also observe that neither distribution of points appears to have a similar clustering pattern to the ground truth data,
 which suggests that both models also have a tendency to produce low quality samples that do correspond to a discernible digit.
-The KL divergences, computed as $D_KL(P||Q)$ where $Q$ is the ground truth distribution, were similar with the model 1 sample at 0.81844,
+The KL divergences, computed as $D_{KL}(P||Q)$ where $Q$ is the ground truth distribution, were similar with the model 1 sample at 0.81844,
 and the model 2 sample at 0.77298.
 This suggests that the distributions of generated images from both models imitate the ground truth with similar success.
 When their images are treated as random vectors, the total variance (trace of the covariance matrix) for the first sample was 56.7,
@@ -199,31 +200,154 @@ While this may suggest a greater diversity of samples from the second model, it 
 which in turn is clearly visible as the samples produced appear grainier.
 
 \begin{figure}[hp]
-    \includegraphics[scale=0.3]{figures/samples_1.png}
+    \includegraphics[scale=0.3, center]{figures/samples_1.png}
     \caption{Samples from model 1.}
     \label{fig:samples_1}
 \end{figure}
 
 \begin{figure}[hp]
-    \includegraphics[scale=0.3]{figures/samples_2.png}
+    \includegraphics[scale=0.3, center]{figures/samples_2.png}
     \caption{Samples from model 2.}
     \label{fig:samples_2}
 \end{figure}
-
 
 \section{Custom Diffusion Model}
 
 
 \subsection{Custom Degradation Strategy}
 
-Earlier prototypes that were infeasible.
+The custom degradation strategy was created to match the description of diffusion described in \cite{bansal2022cold}.
+In this paper Bansal et al. describe a diffusion model as consisting of a degradation $D(x_0,t)$ and restoration $R(x_t, t)$ operator.
+The degradation should be more severe with increasing $t$ such that there is no degradation at $t=0$,
+while the restoration operator should approximate the inverse such that $R(D(x,t),t) \approx x_0$.
+In our context $R$ is the learned CNN model.
+For the degradation, Bansal et al. used a variety of unconventional operators.
+One of the simpler examples was a super-resolution denoising model,
+where the degradation was a downsampling which essentially grouped together chunks of pixels and averaged them to have a single pixel value.
+This motivated the idea of a grouping pixels together and permuting the groups,
+so that the denoising task was somewhat akin to solving a sliding puzzle.
+Here larger time steps could correspond to smaller groups of pixels so that in the extreme, all individual pixels are permuted.
+However, this proved to be computationally infeasible (the degradation must be performed thousands of times for each epoch).
+Instead, in the implementation, the procedure iterates through all pixels, each time swapping it with the pixel value at another random position.
+This random index is chosen as the current pixel coordinates, plus a random uniform offset whose limits in both spatial directions are controlled by the noise parameter.
+Therefore at small time steps pixel values are only swapped locally.
+This custom degradation strategy is illustrated in Figure \ref{fig:custom}.
 
-Demo plot for digits 1 to 4.
-Batch/timestep limitation.
+\begin{figure}[hp]
+    \includegraphics[scale=0.7, center]{figures/custom_degradation.png}
+    \caption{Examples of the custom degradation operator with different noise levels, acting on test MNIST images.}
+    \label{fig:custom}
+\end{figure}
+
+One limitation of the implementation of this model is that since the noise is not additive,
+the degradation process for a single image takes a considerable amount of compute time,
+which then scales with the batch size.
+To mitigate this, the \texttt{forward} method of the new model class \texttt{DMCustom} applies the same degradation noise level to the whole batch,
+so that the random swapping index can be computed once for each pixel,
+and the corresponding pixel in all batch images can be swapped simultaneously via the tensor API.
+In this way, each batch step involves the same random time step for the whole batch rather than a vector of time steps.
+In turn this may mean that the training regime is less stable since there will be heterogeneity across different batches.
+
+\subsection{Analysis of Custom Diffusion Training}
+
+\begin{figure}[hp]
+    \includegraphics[scale=0.4, center]{figures/learning_curve_9.png}
+    \caption{Learning curve of first custom diffusion model.}
+    \label{fig:learning_curve_9}
+\end{figure}
+
+In the first instance this model was implemented with slightly different hyperparameters.
+The number of time steps was set to 100, and the batch size was set to 64, in order to try to mitigate the aforementioned stability issue.
+The initial learning rate was reduced to $10^{-4}$ to counteract the increased noise from the smaller batches.
+Additionally an L1 loss was used, just as in \cite{bansal2022cold}.
+
+This model was only trained for 80 epochs, which was sufficient to observe it's loss curve plateau (Figure \ref{fig:learning_curve_9}).
+Moreover, we can see that the quality of trained samples reaches an optimum much earlier than this in Figure \ref{fig:diffusion_9}, around epoch 20.
+Past this point, the diversity of samples falls dramatically, with almost excusively ones produced.
+A possible explanation for this is that the degradation has an asymmetrical nature,
+in the sense that moderate degradation is much more likely to transform a complex symbol (for instance a 6 that contains a loop) into a simple continuous `blob',
+than the other way around.
+This would explain the cartoonish, thick-stroked quality of the final samples produced by this model.
+Another related issue is that the final time-step noise level is likely not strong enough in this sample;
+this can be seen in Figure \ref{fig:custom} which uses the same noise levels, where the most noisy images can still be discerned as their true digits.
+
+\begin{figure}[hp]
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_9_0000}
+    \caption{Epoch 0}
+    \label{fig:9_0}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_9_0020.png}
+    \caption{Epoch 20}
+    \label{fig:9_20}
+    \end{subfigure}
+
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_9_0060.png}
+    \caption{Epoch 60}
+    \label{fig:9_60}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_9_0080.png}
+    \caption{Epoch 80}
+    \label{fig:9_80}
+    \end{subfigure}
+
+    \caption{First custom diffusion process samples at various stages of training.}
+    \label{fig:diffusion_9}
+\end{figure}
+
+In the second model, the final noise level was increased, and the total number of time steps was reduced from 100 to 20,
+to reduce the accumulation of apparent bias towards 1s inherent in the degradation scheme.
+The loss was changed back to L2.
+This was trained for 180 epochs, although the loss appears to begin to plateau around epoch 140 in Figure \ref{fig:learning_curve_10} which is also where the best quality samples appear to be produced.
+Interestingly, this model has very low sample diversity immediately from epoch 0, as seen in Figure \ref{fig:diffusion_9}
+It begins to produce reasonable images of digits around epoch 40, but this is mostly 8s and 9s.
+Sampels from epoch 180 seem to revert to lower levels of diversity again, and with low quality images.
+
+\begin{figure}[hp]
+    \includegraphics[scale=0.4, center]{figures/learning_curve_10.png}
+    \caption{Learning curve of first custom diffusion model.}
+    \label{fig:learning_curve_10}
+\end{figure}
+
+\begin{figure}[hp]
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_10_0000}
+    \caption{Epoch 0}
+    \label{fig:10_0}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_10_0040.png}
+    \caption{Epoch 40}
+    \label{fig:10_40}
+    \end{subfigure}
+
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_10_0140.png}
+    \caption{Epoch 140}
+    \label{fig:10_140}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=0.9\linewidth, height=6cm, center]{figures/diffusion_plot_10_0180.png}
+    \caption{Epoch 180}
+    \label{fig:10_180}
+    \end{subfigure}
+
+    \caption{Second custom diffusion process samples at various stages of training.}
+    \label{fig:diffusion_10}
+\end{figure}
+
+In Figure \ref{fig:tsne_custom}, we see the same t-SNE embeddings of samples of images produced from the two custom models.
 
 
-\subsection{Analysis of Custom Degradation Training}
-Early epochs diversity issues.
+\begin{figure}[hp]
+    \includegraphics[scale=0.54, center]{figures/tsne_custom_models.png}
+    \caption{t-SNE dimensionality reduction applied to custom model samples, with contour plot of GMM density estimate for MNIST test data. (NB: `Model 9' and `Model 10' refer to the first and second models respectively.)}
+    \label{fig:tsne_custom}
+\end{figure}
+
 \subsection{Comparison of Gaussian and Custom Degradation}
 TSNE plot and Bansal's
 
