@@ -1,3 +1,8 @@
+"""!@file train.py
+    @brief Module containing procedures used to train and save diffusion
+    models.
+"""
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -18,6 +23,22 @@ def train_model(
     checkpoint_path: str,
     config_id: str,
 ):
+    """!@brief Handles the training process for a diffusion model.
+    @param ddpm Diffusion model object; either DDPM or DMCustom class
+    instance
+    @param dataloader_train Iterable that yields pairs of matched ground
+    truth and degraded image samples for training
+    @param dataloader_val Iterable that yields pairs of matched ground
+    truth and degraded image samples for model validation
+    @param accelerator accelerate package object which simplifies the
+    management of CPU/GPU processing devices
+    @param n_epoch Total number of epochs to train for before stopping
+    @param save_interval Number of epochs to wait for between saving models
+    @param sample_path Specifies where to save model samples (deprecated)
+    @param checkpoint_path Specifies where to save model checkpoint files
+    @param config_id Specifies configuration id to use to label model
+    checkpoint files
+    """
     losses_train_epoch = []
     losses_val_epoch = []
 

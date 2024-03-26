@@ -1,3 +1,8 @@
+"""!@file models.py
+    @brief Script used to evaluate the quality of diffusion samples at
+    intermediate stages of training.
+"""
+
 import torch
 import torch.nn as nn
 
@@ -10,7 +15,7 @@ torch.manual_seed(42)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 for epoch in range(0, 200, 20):
-    # Load models.
+    # Load models and plot samples of diffusion process for each.
     ckpt_0001 = torch.load(
         f"data/DDPM/checkpoint/ddpm_checkpoint_0001_{epoch:04d}.pt",
         map_location=device,

@@ -1,3 +1,8 @@
+"""!@file analysis.py
+    @brief Module containing procedures used to analyse and compare trained
+    diffusion models.
+"""
+
 import torch
 from torchvision.datasets import MNIST
 from torchvision import transforms
@@ -19,6 +24,12 @@ def plot_learning_curve(
     title: str,
     filename: str,
 ):
+    """!@brief Plot changes in loss function across epochs for model training.
+    @param losses_train List of training losses per epoch
+    @param losses_val List of validation losses per epoch
+    @param title String of title to be displayed in plot
+    @param filename: String of filename to save to
+    """
     fig, ax = plt.subplots(figsize=(15, 10))
     ax.plot(losses_train, label="Training Loss", color="red")
     ax.plot(losses_val, label="Validation Loss", color="blue")
@@ -28,8 +39,23 @@ def plot_learning_curve(
 
 
 def compute_image_diffusion(
-    model: DDPM, image_fractions: List[int], n_sample: int, size, device
+    model: DDPM, image_fractions: List[float], n_sample: int, size, device
 ):
+    """!@brief Save intermediate image generations at specified parts of the
+    Gaussian diffusion process.
+    @details Similar to the sample() method of the DDPM class, except
+    intermediate reconstructions are saved.
+    @param model DDPM Class instance, which implements the Gaussian noising
+    schedule
+    @param image_fractions List of floats in [0, 1] specifying the stages of
+    diffusion in which to save the current reconstruction
+    @param n_sample Integer specifying number of samples to generate
+    @param size Image size as (channels, height, width)
+    @param device PyTorch device variable used to control processing unit
+    @returns image_idx List of discrete integer time steps at which
+    reconstructions were saved
+    @returns images List of intermediate image reconstructions.
+    """
     image_idx = [
         int(fraction * (model.n_T - 1)) for fraction in image_fractions
     ]
@@ -69,6 +95,26 @@ def compute_image_diffusion_custom(
     device,
     direct: bool = False,
 ) -> torch.Tensor:
+    """!@brief Save intermediate image generations at specified parts of the
+    custom diffusion process.
+    @details Generates an initial image by maximally degrading an MNIST test
+    sample according to the model's parameters, and then performing the
+    reverse diffusion process.
+    @param model DMCustom Class instance, which implements the custom noising
+    schedule
+    @param image_fractions List of floats in [0, 1] specifying the stages of
+    diffusion in which to save the current reconstruction
+    @param n_sample Integer specifying number of samples to generate
+    @param size Image size as (channels, height, width)
+    @param device PyTorch device variable used to control processing unit
+    @param direct Determines whether the very first reconstruction is saved
+    (without a degradation)
+    @returns image_idx List of discrete integer time steps at which
+    reconstructions were saved
+    @returns images List of intermediate image reconstructions.
+    @returns direct_img Stack of direct image recosntructions if this was
+    specified
+    """
     # Algorithm 2 from Bansal et al. Cold Diffusion paper.
     # Create random noise
     tf = transforms.Compose(
@@ -121,6 +167,17 @@ def plot_image_diffusion(
     title: str,
     filename: str,
 ):
+    """!@brief Plot intermediate image generations at specified parts of the
+    custom diffusion process.
+    @param model DDPM or DMCustom class instance
+    @param image_fractions List of floats in [0, 1] specifying the stages of
+    diffusion in which to save the current reconstruction
+    @param n_sample Integer specifying number of samples to generate
+    @param size Image size as (channels, height, width)
+    @param device PyTorch device variable used to control processing unit
+    @param title String for title to be included in the figure
+    @param filename String determining saved filename for figure
+    """
     n_image = len(image_fractions)
     if isinstance(model, DDPM):
         image_idx, images = compute_image_diffusion(
@@ -151,6 +208,14 @@ def plot_image_diffusion(
 
 
 def plot_samples(samples: np.ndarray, n_row: int, n_col: int, filename: str):
+    """!@brief Produce matrix of synthetic image samples.
+    @param samples NumPy array whose first dimension is the image index
+    @param image_fractions List of floats in [0, 1] specifying the stages of
+    diffusion in which to save the current reconstruction
+    @param n_row Integer specifying number of rows
+    @param n_col Integer specifying number of columns
+    @param filename String determining saved filename for figure
+    """
     n_sample = n_row * n_col
     fig, ax = plt.subplots(n_row, n_col, figsize=(n_col * 2.5, n_row * 2.5))
     for i in range(n_sample):
@@ -167,6 +232,15 @@ def plot_gt_direct_diffusion(
     n_plot: int,
     filename: str,
 ):
+    """!@brief Compare direct and diffused reconstructions.
+    @details Produce a 3x[n_plot] grid of images comparing corresponding
+    ground truth vs. direct vs. diffusion image samples, and then compute MSE
+    statistics for the full samples.
+    @param direct_sample NumPy array whose first dimension is the image index
+    @param diffusion_sample NumPy array whose first dimension is the image
+    index
+    @param filename String determining saved filename for figure
+    """
     n_sample = direct_sample.shape[0]
     # Load MNIST Dataset
     tf = transforms.Compose(
@@ -224,6 +298,10 @@ def plot_gt_direct_diffusion(
 
 
 def compute_variance(sample: np.ndarray):
+    """!@brief Compute the total variance of a sample of vectors.
+    @param sample NumPy array whose first dimension is the image index
+    @returns total_variance The computed total variance of the vectors
+    """
     pixel_var = np.var(sample, axis=0, ddof=1)
     total_var = np.sum(pixel_var)
     return total_var
@@ -232,6 +310,14 @@ def compute_variance(sample: np.ndarray):
 def degradation_demo(
     model: DMCustom, device, t_list: List[int], title: str, filename: str
 ):
+    """!@brief Plot MNIST images of digits 1 to 4 with varying custom
+    degradation levels.
+    @param model DMCustom class instance
+    @param device PyTorch device variable used to control processing unit
+    @param t_list List of time steps at which to demonstrate the degradation
+    @param title String for title to be included in the figure
+    @param filename String determining saved filename for figure
+    """
     # Get MNIST examples.
     tf = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
@@ -259,6 +345,14 @@ def degradation_demo(
 
 
 def compute_tsne_kl_div(samples: List[np.ndarray], labels: List[str]):
+    """!@brief Map the given samples into a 2D t-SNE embedding alongside the
+    MNIST test data, and compute the KL divergences.
+    @param samples List of different generated image stacks
+    @param labels Labels for the sample to use in the output
+    @returns density_gt Fitted GMM density values for the GT data
+    @returns samples_fitted t-SNE embeddings for each of the samples
+    @returns samples_densities Fitted GMM density maps for each sample
+    """
     # Load Test MNIST Data with pre-processing.
     tf = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
@@ -332,6 +426,18 @@ def plot_sample_tsne(
     label_2: str,
     filename: str,
 ):
+    """!@brief Plot the t-SNE embeddings of two samples alongside the MNIST
+    test data fitted density.
+    @param density_gt Mesh of fitted GMM density for the 2D ground truth
+    embedding
+    @param sample_1_fitted 2D embeddings for sample 1
+    @param sample_2_fitted 2D embeddings for sample 2
+    @param density_1 Mesh of fitted GMM density for sample 1
+    @param density_2 Mesh of fitted GMM density for sample 2
+    @param label_1 Legend label for sample 1
+    @param label_2 Legend label for sample 2
+    @param filename String determining saved filename for figure
+    """
     # Make grid for plotting
     xx, yy = np.meshgrid(
         np.linspace(-100, 100, 201), np.linspace(-100, 100, 201)
@@ -376,6 +482,10 @@ def plot_sample_tsne(
 
 
 def plot_mnist_tsne(filename: str):
+    """!@brief Plot the t-SNE embeddings of MNIST test data alone, digit
+    classes indicated.
+    @param filename String determining saved filename for figure
+    """
     # Load Test MNIST Data with pre-processing.
     tf = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]

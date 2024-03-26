@@ -1,3 +1,9 @@
+"""!@file models.py
+    @brief Module containing classes and procedures used to build diffusion
+    models.
+"""
+
+
 from typing import Dict, Tuple
 
 import numpy as np
@@ -8,8 +14,13 @@ import torch.nn as nn
 def ddpm_schedules(
     beta1: float, beta2: float, T: int
 ) -> Dict[str, torch.Tensor]:
-    """Returns pre-computed schedules for DDPM sampling with a linear noise
-    schedule.
+    """!@brief Returns pre-computed schedules for DDPM sampling with a linear
+    noise schedule.
+    @param beta1 Minimal noise parameter
+    @param beta2 Taximal noise parameter
+    @param T Total number of discrete diffusion time steps
+    @returns Dict[str,torch.Tensor] Dictionary storing alpha and beta noise
+    parameter vectors
     """
     assert beta1 < beta2 < 1.0, "beta1 and beta2 must be in (0, 1)"
 
@@ -22,6 +33,10 @@ def ddpm_schedules(
 
 
 class CNNBlock(nn.Module):
+    """!@brief Class instantiating a convolutional block with layer
+    normalisation and non-linear activation.
+    """
+
     def __init__(
         self,
         in_channels,
@@ -31,6 +46,13 @@ class CNNBlock(nn.Module):
         act=nn.GELU,
         kernel_size=7,
     ):
+        """!@brief Initialisation for CNNBlock class
+        @param in_channels Number of input channels
+        @param out_channels Number of output channels
+        @param expected_shape Image shape (height, width)
+        @param act Non-linear activation function
+        @param kernel_size Size of convolutional kernel to use
+        """
         super().__init__()
 
         self.net = nn.Sequential(
@@ -45,10 +67,18 @@ class CNNBlock(nn.Module):
         )
 
     def forward(self, x):
+        """!@brief Forward pass function for CNNBlock.
+        @param x Input from previous hidden layer
+        @returns torch.tensor Output to pass to next hidden layer
+        """
         return self.net(x)
 
 
 class CNN(nn.Module):
+    """!@brief Defines CNN class used to reconstruct images during
+    diffusion.
+    """
+
     def __init__(
         self,
         in_channels,
@@ -59,6 +89,20 @@ class CNN(nn.Module):
         time_embeddings=16,
         act=nn.GELU,
     ) -> None:
+        """!@brief Initialisation for CNN class.
+        @param in_channels Number of input channels
+        @param expected_shape image shape as (height, width)
+        @param n_hidden Tuple containing number of hidden channels per
+        hidden layer
+        @param kernel_size Convolution kernel size
+        @param last_kernel_size Used to specify different kernel size in
+        final layer
+        @param time_embedding Determines dimensionality of temporal
+        embeddings for diffusion (which is later doubled before combining
+        with the network)
+        @param act Non-linear activation function to use in the hidden
+        neurons
+        """
         super().__init__()
         last = in_channels
 
@@ -103,6 +147,12 @@ class CNN(nn.Module):
         self.register_buffer("frequencies", frequencies)
 
     def time_encoding(self, t: torch.Tensor) -> torch.Tensor:
+        """!@brief Produces embedding vectors for the time steps passed during
+        the input to the network.
+        @param t Tensor of time steps, one for each batch member
+        @returns torch.Tensor Embedded vectors that have been passed
+        through trigonometric functions and then learned linear network
+        """
         phases = torch.concat(
             (
                 torch.sin(t[:, None] * self.frequencies[None, :]),
@@ -114,10 +164,11 @@ class CNN(nn.Module):
         return self.time_embed(phases)[:, :, None, None]
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        # Shapes of input:
-        #    x: (batch, chan, height, width)
-        #    t: (batch,)
-
+        """!@brief Defines the forward pass for the model.
+        @param x Image stack with shape (batch, chan, height, width)
+        @param t Time step stack with shape (batch,)
+        @returns embed Final output of the model
+        """
         embed = self.blocks[0](x)
         # ^ (batch, n_hidden[0], height, width)
 
@@ -134,6 +185,8 @@ class CNN(nn.Module):
 
 
 class DDPM(nn.Module):
+    """!@brief Defines Gaussian diffusion model class."""
+
     def __init__(
         self,
         gt,
@@ -141,6 +194,14 @@ class DDPM(nn.Module):
         n_T: int,
         criterion: nn.Module = nn.MSELoss(),
     ) -> None:
+        """!@brief Initialisation for DDPM class.
+        @param gt Trainable model used to approximate the reconstruction
+        process
+        @param betas Determines the extremes of the noise levels along the
+        diffusion process
+        @param n_T Number of discrete diffusion time steps
+        @param criterion Loss function to use for the denoising process
+        """
         super().__init__()
 
         self.gt = gt
@@ -158,7 +219,15 @@ class DDPM(nn.Module):
         self.criterion = criterion
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Algorithm 18.1 in Prince"""
+        """!@brief Forward pass for the DDPM model.
+        @details Implements Algorithm 18.1 in Understanding Deep Learning,
+        found at http://udlbook.com. Note that unusually, this forward
+        method returns the loss function of the predicted error, rather
+        than the error prediction itself.
+        @param x Batched input
+        @returns torch.Tensor Loss function evaluated on the predicted
+        error compared to the true error
+        """
 
         t = torch.randint(1, self.n_T, (x.shape[0],), device=x.device)
         eps = torch.randn_like(x)  # eps ~ N(0, 1)
@@ -174,7 +243,13 @@ class DDPM(nn.Module):
         return self.criterion(eps, self.gt(z_t, t / self.n_T))
 
     def sample(self, n_sample: int, size, device) -> torch.Tensor:
-        """Algorithm 18.2 in Prince"""
+        """!@brief Reverse diffusion sampling for the DDPM model.
+        @details Implements Algorithm 18.2 in Understanding Deep Learning,
+        found at http://udlbook.com.
+        @param n_sample Number of images to generate
+        @param size Image size tuple in the format (channel, height, width)
+        @returns z_t Stack of generated image samples
+        """
 
         _one = torch.ones(n_sample, device=device)
         z_t = torch.randn(n_sample, *size, device=device)
@@ -198,6 +273,8 @@ class DDPM(nn.Module):
 
 
 class DMCustom(nn.Module):
+    """!@brief Class defining custom diffusion model."""
+
     def __init__(
         self,
         gt,
@@ -206,6 +283,15 @@ class DMCustom(nn.Module):
         size: Tuple[int, int],
         criterion: nn.Module = nn.MSELoss(),
     ) -> None:
+        """!@brief Initialisation for DMCustom class.
+        @param gt Trainable model used to approximate the reconstruction
+        process
+        @param alphas Determines the extremes of the noise levels along the
+        diffusion process
+        @param n_T Number of discrete diffusion time steps
+        @param size Image size tuple in the format (channel, height, width)
+        @param criterion Loss function to use for the denoising process
+        """
         super().__init__()
 
         self.gt = gt
@@ -223,6 +309,14 @@ class DMCustom(nn.Module):
         self.size = size
 
     def degrade(self, x: torch.Tensor, t: int, device) -> torch.Tensor:
+        """!@brief Implements custom degradation operation
+        @param x Batched image tensor
+        @param t Integer discrete time-step; note that the same
+        degradation is applied to all images in the stack
+        @param device torch.device object which enables GPU or CPU to be
+        specified
+        @returns z_t Stack of images with degradation applied
+        """
         z_t = x.clone()
         batch_size = z_t.shape[0]
         size = self.size
@@ -256,6 +350,15 @@ class DMCustom(nn.Module):
         return z_t
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """!@brief Forward pass for the DMCustom model.
+        @details Implements Algorithm 18.1 in Understanding Deep Learning,
+        found at http://udlbook.com. Note that unusually, this forward
+        method returns the loss function of the predicted error, rather
+        than the error prediction itself.
+        @param x Batched input
+        @returns torch.Tensor Loss function evaluated on the predicted
+        error compared to the true error
+        """
         # Choose random time step and degrade image batch accordingly.
         t = torch.randint(1, self.n_T, (1,), device=x.device)
         z_t = x.clone()
@@ -266,7 +369,13 @@ class DMCustom(nn.Module):
         return self.criterion(x, self.gt(z_t, (t / self.n_T) * _one))
 
     def sample(self, n_sample: int, size, device) -> torch.Tensor:
-        # Algorithm 2 from Bansal et al. Cold Diffusion paper.
+        """!@brief Reverse diffusion sampling for the DMCustom model.
+        @details Implements Algorithm 18.2 in Understanding Deep Learning,
+        found at http://udlbook.com.
+        @param n_sample Number of images to generate
+        @param size Image size tuple in the format (channel, height, width)
+        @returns z_t Stack of generated image samples
+        """
         # Create random noise
         pos = torch.arange(
             0, n_sample * size[0] * size[1] * size[2], device=device

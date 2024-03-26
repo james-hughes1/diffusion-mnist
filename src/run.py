@@ -1,5 +1,6 @@
-"""!@file main.py
-    @brief Used to create and train model .
+"""!@file run.py
+    @brief Script used to create and train diffusion model, based on
+    parameters provided via the config.ini file.
     @author Created by J. Hughes on 18/03/2024.
 """
 

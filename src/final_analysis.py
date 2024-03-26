@@ -1,3 +1,8 @@
+"""!@file models.py
+    @brief Script used to produce plots and statistics related to final
+    trained diffusion models.
+"""
+
 import torch
 import torch.nn as nn
 
