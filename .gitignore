@@ -21,7 +21,8 @@ docs/latex/*
 
 # Data
 data/MNIST/
-data/DDPM/
+data/DDPM/*
+!data/DDPM/checkpoint/
 
 # Pycache
 __pycache__/
