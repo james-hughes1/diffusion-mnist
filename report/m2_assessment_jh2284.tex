@@ -1,7 +1,7 @@
 \documentclass[12pt]{article}
 
 \title{Application of Machine Learning Coursework Report}
-\author{James Hughes}
+\author{James Hughes \\ Word Count: 2904}
 
 \usepackage{graphicx}
 \usepackage{subcaption}
@@ -30,11 +30,11 @@ The model is trained using the training partition of the MNIST dataset \cite{mni
 
 Fundamental to this model is an underlying image-to-image convolutional neural network,
 which tries to predict a ground truth MNIST image from the same image, with added Gaussian noise, as an input.
-This netowrk has a deep, symmetrical architecture based on convolutional layers which initially increase the number of channels,
+This network has a deep, symmetrical architecture based on convolutional layers which initially increase the number of channels,
 which extracts features from the input, and then later combines these channels to eventually produce a monochrome (single-channel) generated image.
 These convolutional layers are combined with a layer normalisation,
 which normalises the pre-activations of the hidden units separately for each input of the batch \cite{ba2016layer}.
-This step builds on the batch normalisation approach, improving the stability and speed of training the neural network \cite{ba2016layer},
+This technique builds on the earlier batch normalisation approach, improving the stability and speed of training the neural network \cite{ba2016layer},
 but has the advantage of being more suitable when batches are small or have a large within-batch variation \cite{prince2023understanding}.
 The results of the layer normalisation are then passed through a GeLU activation function \cite{hendrycks2023gaussian},
 which is a close variant of the standard ReLU activation function,
@@ -49,22 +49,22 @@ changing their length to equal the number of hidden channels in the first layer 
 These time embeddings are then combined with the first hidden activations via addition.
 
 This underlying model is then wrapped in a \texttt{DDPM} class, implementing a \texttt{forward} and \texttt{sample} method.
-The \texttt{forward} method takes a batch of MNIST images input.
+The \texttt{forward} method takes a batch of MNIST images as input.
 It generates a random time step for each image, which controls the strength of degradation applied to each,
 taking the form of addition with Gaussian pixel noise.
 It feeds the degraded image and the time step to the CNN, and returns the mean squared error between the CNN output and the original noise map.
-During training this incentivises the CNN to predict the Gaussian noise applied to a degraded image.
+During training this encourages the CNN to predict the Gaussian noise applied to a degraded image.
 The \texttt{sample} method implements Algorithm 18.2 in \cite{prince2023understanding}.
 It starts with a random Gaussian tensor the same size as the MNIST images, which it then passes through the trained CNN,
 and subsequently degrades with Gaussian noise.
-These two transformations are repeated for smaller and smaller timesteps until the degradation is minimal.
+These two transformations are repeated for smaller and smaller timesteps until the degradation is minimal, and a synthetic image is generated.
 
-The initial codebase was created by refactoring this notebook into a library, \texttt{diffusiontools}.
+The initial codebase was created by refactoring this notebook into a package, \texttt{diffusiontools}.
 The training procedure was then altered to make training runs more repeatable.
 Alongside the samples which were produced at each epoch, the trained model was itself saved as a \texttt{.pt} file.
 This enabled further investigation into intermediate models after the training, and indeed meant that later on,
-the periodic sampling could be removed altogether to speed up training (as sampling could be done in post).
-The hyperparameter settings were also controlled via a \texttt{config.ini} to enable different configurations to be easily tested, and tracked.
+the periodic sampling could be removed altogether to speed up training (as sampling could be done afterwards).
+The hyperparameter settings were also controlled via a \texttt{config.ini} file to enable different configurations to be easily tested, and tracked.
 
 \subsection{Analysis of Training}
 
@@ -156,7 +156,7 @@ The noise parameter limits were accordingly increased by a factor of ten, ensuri
 
 A similar learning curve can be seen for the training of the second model in Figure \ref{fig:learning_curve_2}.
 However, inspecting some of the images produced by intermediate models shows that the quality of the generated images deteriorates much earlier than in Model 1.
-Even images produced at epoch 100 in \ref{fig:diffusion_2} appear to be low quality, with `fragmented' symbols rather than one continuous digit.
+Even images produced at epoch 100 in Figure \ref{fig:diffusion_2} appear to be low quality, with `fragmented' symbols rather than one continuous digit.
 The images produced at epoch 80 appear to be the highest quality and this model was used in the final analysis.
 
 \subsection{Analysis of Final Models}
@@ -218,15 +218,15 @@ which in turn is clearly visible as the samples produced appear grainier.
 
 \subsection{Custom Degradation Strategy}
 
-The custom degradation strategy was created to match the description of diffusion described in \cite{bansal2022cold}.
-In this paper Bansal et al. describe a diffusion model as consisting of a degradation $D(x_0,t)$ and restoration $R(x_t, t)$ operator.
+The custom degradation strategy was created to match the framework of diffusion described in \cite{bansal2022cold}.
+In this paper, Bansal et al. describe a diffusion model as consisting of a degradation $D(x_0,t)$ and restoration $R(x_t, t)$ operator.
 The degradation should be more severe with increasing $t$ such that there is no degradation at $t=0$,
 while the restoration operator should approximate the inverse such that $R(D(x,t),t) \approx x_0$.
 In our context $R$ is the learned CNN model.
 For the degradation, Bansal et al. used a variety of unconventional operators.
 One of the simpler examples was a super-resolution denoising model,
 where the degradation was a downsampling which essentially grouped together chunks of pixels and averaged them to have a single pixel value.
-This motivated the idea of a grouping pixels together and permuting the groups,
+This motivated the idea of grouping pixels together and permuting the groups,
 so that the denoising task was somewhat akin to solving a sliding puzzle.
 Here larger time steps could correspond to smaller groups of pixels so that in the extreme, all individual pixels are permuted.
 However, this proved to be computationally infeasible (the degradation must be performed thousands of times for each epoch).
@@ -241,6 +241,13 @@ This custom degradation strategy is illustrated in Figure \ref{fig:custom}.
     \label{fig:custom}
 \end{figure}
 
+\begin{figure}[hp]
+    \includegraphics[scale=0.4, center]{figures/learning_curve_9.png}
+    \caption{Learning curve of first custom diffusion model.}
+    \label{fig:learning_curve_9}
+\end{figure}
+
+
 One limitation of the implementation of this model is that since the noise is not additive,
 the degradation process for a single image takes a considerable amount of compute time,
 which then scales with the batch size.
@@ -251,12 +258,6 @@ In this way, each batch step involves the same random time step for the whole ba
 In turn this may mean that the training regime is less stable since there will be heterogeneity across different batches.
 
 \subsection{Analysis of Custom Diffusion Training}
-
-\begin{figure}[hp]
-    \includegraphics[scale=0.4, center]{figures/learning_curve_9.png}
-    \caption{Learning curve of first custom diffusion model.}
-    \label{fig:learning_curve_9}
-\end{figure}
 
 In the first instance this model was implemented with slightly different hyperparameters.
 The number of time steps was set to 100, and the batch size was set to 64, in order to try to mitigate the aforementioned stability issue.
@@ -310,7 +311,7 @@ Sampels from epoch 180 seem to revert to lower levels of diversity again, and wi
 
 \begin{figure}[hp]
     \includegraphics[scale=0.4, center]{figures/learning_curve_10.png}
-    \caption{Learning curve of first custom diffusion model.}
+    \caption{Learning curve of second custom diffusion model.}
     \label{fig:learning_curve_10}
 \end{figure}
 
